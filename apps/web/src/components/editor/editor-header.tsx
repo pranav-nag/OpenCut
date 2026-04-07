@@ -19,11 +19,24 @@ import { ThemeToggle } from "../theme-toggle";
 import { DEFAULT_LOGO_URL, SOCIAL_LINKS } from "@/constants/site-constants";
 import { toast } from "sonner";
 import { useEditor } from "@/hooks/use-editor";
-import { CommandIcon, Logout05Icon } from "@hugeicons/core-free-icons";
+import {
+	CheckmarkCircle01Icon,
+	CloudIcon,
+	CommandIcon,
+	Logout05Icon,
+	RedoIcon,
+	UndoIcon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ShortcutsDialog } from "./dialogs/shortcuts-dialog";
 import Image from "next/image";
 import { cn } from "@/utils/ui";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "../ui/tooltip";
 
 export function EditorHeader() {
 	return (
@@ -31,6 +44,9 @@ export function EditorHeader() {
 			<div className="flex items-center gap-1">
 				<ProjectDropdown />
 				<EditableProjectName />
+				<SaveStatus />
+				<div className="w-px h-4 bg-border mx-1" />
+				<UndoRedoButtons />
 			</div>
 			<nav className="flex items-center gap-2">
 				<ExportButton />
@@ -38,6 +54,77 @@ export function EditorHeader() {
 			</nav>
 		</header>
 	);
+}
+
+function UndoRedoButtons() {
+	const editor = useEditor();
+	const canUndo = useEditor((e) => e.command.canUndo());
+	const canRedo = useEditor((e) => e.command.canRedo());
+
+	return (
+		<TooltipProvider>
+			<div className="flex items-center gap-0.5">
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button
+							variant="ghost"
+							size="icon"
+							className="size-8 rounded-sm"
+							disabled={!canUndo}
+							onClick={() => editor.command.undo()}
+						>
+							<HugeiconsIcon icon={UndoIcon} size={18} />
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent side="bottom" className="text-xs">
+						Undo (Ctrl+Z)
+					</TooltipContent>
+				</Tooltip>
+
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button
+							variant="ghost"
+							size="icon"
+							className="size-8 rounded-sm"
+							disabled={!canRedo}
+							onClick={() => editor.command.redo()}
+						>
+							<HugeiconsIcon icon={RedoIcon} size={18} />
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent side="bottom" className="text-xs">
+						Redo (Ctrl+Y)
+					</TooltipContent>
+				</Tooltip>
+			</div>
+		</TooltipProvider>
+	);
+}
+
+function SaveStatus() {
+	const isSaving = useEditor((e) => e.save.getIsSaving());
+	const hasPendingSave = useEditor((e) => e.save.getHasPendingSave());
+
+	if (isSaving) {
+		return (
+			<div className="flex items-center gap-1.5 px-2 text-muted-foreground animate-pulse">
+				<HugeiconsIcon icon={CloudIcon} size={14} />
+				<span className="text-xs font-medium">Saving...</span>
+			</div>
+		);
+	}
+
+	if (!hasPendingSave) {
+		return (
+			<div className="flex items-center gap-1.5 px-2 text-muted-foreground/60">
+				<HugeiconsIcon icon={CheckmarkCircle01Icon} size={14} />
+				<span className="text-xs font-medium">Saved</span>
+			</div>
+		);
+	}
+
+	return null;
 }
 
 function ProjectDropdown() {

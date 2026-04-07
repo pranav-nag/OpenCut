@@ -14,8 +14,22 @@ export class CommandManager {
 	private history: CommandHistoryEntry[] = [];
 	private redoStack: CommandHistoryEntry[] = [];
 	private reactors: Array<() => void> = [];
+	private listeners = new Set<() => void>();
 
 	constructor(private editor: EditorCore) {}
+
+	subscribe(listener: () => void): () => void {
+		this.listeners.add(listener);
+		return () => {
+			this.listeners.delete(listener);
+		};
+	}
+
+	private notify(): void {
+		for (const listener of this.listeners) {
+			listener();
+		}
+	}
 
 	execute({ command }: { command: Command }): Command {
 		const beforeTracks = this.isRippleEnabled
@@ -32,6 +46,7 @@ export class CommandManager {
 			selectionOverride,
 		});
 		this.redoStack = [];
+		this.notify();
 		return command;
 	}
 
@@ -41,6 +56,7 @@ export class CommandManager {
 			previousSelection: this.getSelectionSnapshot(),
 		});
 		this.redoStack = [];
+		this.notify();
 	}
 
 	registerReactor(reactor: () => void): void {
@@ -64,6 +80,7 @@ export class CommandManager {
 			}
 			this.redoStack.push(entry);
 		}
+		this.notify();
 	}
 
 	redo(): void {
@@ -87,6 +104,7 @@ export class CommandManager {
 			previousSelection,
 			selectionOverride,
 		});
+		this.notify();
 	}
 
 	canUndo(): boolean {
@@ -100,6 +118,7 @@ export class CommandManager {
 	clear(): void {
 		this.history = [];
 		this.redoStack = [];
+		this.notify();
 	}
 
 	private getSelectionSnapshot(): ElementRef[] {

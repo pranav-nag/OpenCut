@@ -11,12 +11,26 @@ export class SaveManager {
 	private hasPendingSave = false;
 	private saveTimer: ReturnType<typeof setTimeout> | null = null;
 	private unsubscribeHandlers: Array<() => void> = [];
+	private listeners = new Set<() => void>();
 
 	constructor(
 		private editor: EditorCore,
 		{ debounceMs = 800 }: SaveManagerOptions = {},
 	) {
 		this.debounceMs = debounceMs;
+	}
+
+	subscribe(listener: () => void): () => void {
+		this.listeners.add(listener);
+		return () => {
+			this.listeners.delete(listener);
+		};
+	}
+
+	private notify(): void {
+		for (const listener of this.listeners) {
+			listener();
+		}
 	}
 
 	start(): void {
@@ -54,16 +68,26 @@ export class SaveManager {
 	markDirty({ force = false }: { force?: boolean } = {}): void {
 		if (this.isPaused && !force) return;
 		this.hasPendingSave = true;
+		this.notify();
 		this.queueSave();
 	}
 
 	async flush(): Promise<void> {
 		this.hasPendingSave = true;
+		this.notify();
 		await this.saveNow();
 	}
 
 	getIsDirty(): boolean {
 		return this.hasPendingSave || this.isSaving;
+	}
+
+	getIsSaving(): boolean {
+		return this.isSaving;
+	}
+
+	getHasPendingSave(): boolean {
+		return this.hasPendingSave;
 	}
 
 	private queueSave(): void {
@@ -87,12 +111,14 @@ export class SaveManager {
 
 		this.isSaving = true;
 		this.hasPendingSave = false;
+		this.notify();
 		this.clearTimer();
 
 		try {
 			await this.editor.project.saveCurrentProject();
 		} finally {
 			this.isSaving = false;
+			this.notify();
 			if (this.hasPendingSave) {
 				this.queueSave();
 			}
